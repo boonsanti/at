@@ -53,9 +53,9 @@ func (p *DefaultProfile) Init(d *Device) (err error) {
 		return errors.New("at init: unable to adjust the format of operator's name")
 	}
 	var info *SystemInfoReport
-	if info, err = p.SYSINFO(); err != nil {
-		return errors.New("at init: unable to read system info")
-	}
+	// if info, err = p.SYSINFO(); err != nil {
+	// 	return errors.New("at init: unable to read system info")
+	// }
 	p.dev.State = &DeviceState{
 		ServiceState:  info.ServiceState,
 		ServiceDomain: info.ServiceDomain,
