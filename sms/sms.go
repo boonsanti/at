@@ -383,9 +383,9 @@ func (s *Message) ReadFrom(octets []byte) (n int, err error) {
 			ie := sms.UserDataHeader[2 : ieLen+2]
 
 			if ieType == 0x00 {
-				id := ie[0]
-				total := ie[1]
-				num := ie[2]
+				id = ie[0]
+				total = ie[1]
+				num = ie[2]
 			}
 
 		}
