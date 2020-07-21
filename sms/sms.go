@@ -377,18 +377,18 @@ func (s *Message) ReadFrom(octets []byte) (n int, err error) {
 		s.LoopPrevention = sms.LoopPrevention
 		s.ReplyPathExists = sms.ReplyPath
 		s.UserDataStartsWithHeader = sms.UserDataHeaderIndicator
-		if sms.UserDataHeaderIndicator {
-			ieType := sms.UserDataHeader[0]
-			ieLen := sms.UserDataHeader[1]
-			ie := sms.UserDataHeader[2 : ieLen+2]
+		// if sms.UserDataHeaderIndicator {
+		// 	ieType := sms.UserDataHeader[0]
+		// 	ieLen := sms.UserDataHeader[1]
+		// 	ie := sms.UserDataHeader[2 : ieLen+2]
 
-			if ieType == 0x00 {
-				id = ie[0]
-				total = ie[1]
-				num = ie[2]
-			}
+		// 	if ieType == 0x00 {
+		// 		id = ie[0]
+		// 		total = ie[1]
+		// 		num = ie[2]
+		// 	}
 
-		}
+		// }
 		s.StatusReportIndication = sms.StatusReportIndication
 		s.Address.ReadFrom(sms.OriginatingAddress[1:])
 		s.Encoding = Encoding(sms.DataCodingScheme)
