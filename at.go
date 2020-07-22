@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tarm/goserial"
 	"github.com/boonsanti/at/pdu"
 	"github.com/boonsanti/at/sms"
+	serial "github.com/tarm/goserial"
 )
 
 // BaudRate defines the default speed of serial connection.
@@ -282,12 +282,12 @@ func (d *Device) handleReport(str string) (err error) {
 		}
 		var text string
 		if ussd.Enc == Encodings.UCS2 {
-			text, err = pdu.DecodeUcs2(ussd.Octets,false)
+			text, err = pdu.DecodeUcs2(ussd.Octets)
 			if err != nil {
 				return
 			}
 		} else if ussd.Enc == Encodings.Gsm7Bit {
-			text, err = pdu.Decode7Bit(ussd.Octets)
+			text, err = pdu.Decode7Bit(ussd.Octets, 0)
 			if err != nil {
 				return
 			}
@@ -376,6 +376,8 @@ func (d *Device) Open() (err error) {
 		}); err != nil {
 			return
 		}
+	} else {
+		d.notifyPort = d.cmdPort
 	}
 	return
 }
