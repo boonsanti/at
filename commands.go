@@ -9,6 +9,7 @@ import (
 	"github.com/boonsanti/at/pdu"
 	"github.com/boonsanti/at/sms"
 	"github.com/boonsanti/at/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // DeviceProfile hides the device-specific implementation
@@ -31,6 +32,7 @@ type DeviceProfile interface {
 	OperatorName() (str string, err error)
 	ModelName() (str string, err error)
 	IMEI() (str string, err error)
+	QURCCFG(urcPortValue string) (err error)
 }
 
 // DeviceE173 returns an instance of DeviceProfile implementation for Huawei E173,
@@ -53,6 +55,7 @@ func (p *DefaultProfile) Init(d *Device) (err error) {
 		return errors.New("at init: unable to adjust the format of operator's name")
 	}
 	var info *SystemInfoReport
+	info = &SystemInfoReport{}
 	// if info, err = p.SYSINFO(); err != nil {
 	// 	return errors.New("at init: unable to read system info")
 	// }
@@ -65,33 +68,46 @@ func (p *DefaultProfile) Init(d *Device) (err error) {
 		SimState:      info.SimState,
 	}
 	if p.dev.State.OperatorName, err = p.OperatorName(); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to read operator's name")
 	}
 	if p.dev.State.ModelName, err = p.ModelName(); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to read modem's model name")
 	}
 	if p.dev.State.IMEI, err = p.IMEI(); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to read modem's IMEI code")
 	}
+	if err = p.QURCCFG("uart1"); err != nil {
+		log.Error(err)
+		return errors.New("at init: unable to switch URC to uart1")
+	}
 	if err = p.CMGF(false); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to switch message format to PDU")
 	}
 	if err = p.CPMS(MemoryTypes.NvRAM, MemoryTypes.NvRAM, MemoryTypes.NvRAM); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to set messages storage")
 	}
 	if err = p.CNMI(1, 1, 0, 0, 0); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to turn on message notifications")
 	}
 	var octets map[uint64][]byte
 	if octets, err = p.CMGL(MessageFlags.Any); err != nil {
+		log.Error(err)
 		return errors.New("at init: unable to check message inbox")
 	}
 	for n, oct := range octets {
 		var msg sms.Message
 		if _, err := msg.ReadFrom(oct); err != nil {
+			log.Error(err)
 			return errors.New("at init: error while parsing message inbox")
 		}
 		if err := p.CMGD(n, DeleteOptions.Index); err != nil {
+			log.Error(err)
 			return errors.New("at init: error while cleaning message inbox")
 		}
 		d.messages <- &msg
@@ -456,5 +472,15 @@ func (p *DefaultProfile) ModelName() (str string, err error) {
 // IMEI sends AT+GSN to the device and gets the modem's IMEI code.
 func (p *DefaultProfile) IMEI() (str string, err error) {
 	str, err = p.dev.Send(`AT+GSN`)
+	return
+}
+
+// QUECTEL UC20G
+// AT+QURCCFG Configure URC Indication Option.
+// This command is used to configure the output port of URC.
+// parameter ("usbat","usbmodem","uart1")
+func (p *DefaultProfile) QURCCFG(urcPortValue string) (err error) {
+	req := fmt.Sprintf(`AT+QURCCFG="urcport","%s"`, urcPortValue)
+	_, err = p.dev.Send(req)
 	return
 }

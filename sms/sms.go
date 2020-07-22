@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"fmt"
 
 	"github.com/stas2k/at/pdu"
 )
@@ -184,14 +185,14 @@ func (t Timestamp) PDU() []byte {
 func (t *Timestamp) ReadFrom(octets []byte) {
 	blocks := pdu.DecodeSemi(octets)
 	date := time.Date(2000+blocks[0], time.Month(blocks[1]), blocks[2], blocks[3], blocks[4], blocks[5], 0, time.UTC)
-	diff := time.Duration(blocks[6]) * 15 * time.Minute
-	if blocks[6]>>3&0x01 == 1 { // bit 3 = GMT offset sgn
-		// was negative, so make UTC
-		date = date.Add(diff)
-	} else {
-		// was positive, so make UTC
-		date = date.Add(-diff)
-	}
+	//diff := time.Duration(blocks[6]) * 15 * time.Minute
+	//if blocks[6]>>3&0x01 == 1 { // bit 3 = GMT offset sgn
+	//	// was negative, so make UTC
+	//	date = date.Add(diff)
+	//} else {
+	//	// was positive, so make UTC
+	//	date = date.Add(-diff)
+	//}
 	*t = Timestamp(date.In(time.Local))
 }
 
@@ -207,6 +208,10 @@ type Message struct {
 	ServiceCenterAddress PhoneNumber
 	Address              PhoneNumber
 	Text                 string
+	UserDataHeaderID     byte
+	UserDataHeaderTotal  byte
+	UserDataHeaderNum    byte
+	UDH                  string
 
 	// Advanced
 	MessageReference         byte
@@ -377,18 +382,18 @@ func (s *Message) ReadFrom(octets []byte) (n int, err error) {
 		s.LoopPrevention = sms.LoopPrevention
 		s.ReplyPathExists = sms.ReplyPath
 		s.UserDataStartsWithHeader = sms.UserDataHeaderIndicator
-		// if sms.UserDataHeaderIndicator {
-		// 	ieType := sms.UserDataHeader[0]
-		// 	ieLen := sms.UserDataHeader[1]
-		// 	ie := sms.UserDataHeader[2 : ieLen+2]
+		if sms.UserDataHeaderIndicator {
+			ieType := sms.UserDataHeader[0]
+			ieLen := sms.UserDataHeader[1]
+			ie := sms.UserDataHeader[2 : ieLen+2]
 
-		// 	if ieType == 0x00 {
-		// 		id = ie[0]
-		// 		total = ie[1]
-		// 		num = ie[2]
-		// 	}
-
-		// }
+			if ieType == 0x00 {
+				s.UserDataHeaderID = ie[0]
+				s.UserDataHeaderTotal = ie[1]
+				s.UserDataHeaderNum = ie[2]
+				s.UDH = fmt.Sprintf("%d,%d,%d", s.UserDataHeaderID, s.UserDataHeaderTotal, s.UserDataHeaderNum)
+			}
+		}
 		s.StatusReportIndication = sms.StatusReportIndication
 		s.Address.ReadFrom(sms.OriginatingAddress[1:])
 		s.Encoding = Encoding(sms.DataCodingScheme)
