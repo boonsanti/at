@@ -33,6 +33,7 @@ type DeviceProfile interface {
 	ModelName() (str string, err error)
 	IMEI() (str string, err error)
 	QURCCFG(urcPortValue string) (err error)
+	CSQ() (value int, err error)
 }
 
 // DeviceE173 returns an instance of DeviceProfile implementation for Huawei E173,
@@ -51,6 +52,10 @@ type DefaultProfile struct {
 func (p *DefaultProfile) Init(d *Device) (err error) {
 	p.dev = d
 	p.dev.Send(NoopCmd) // kinda flush
+	if err = p.QURCCFG("uart1"); err != nil {
+		log.Error(err)
+		return errors.New("at init: unable to switch URC to uart1")
+	}
 	if err = p.COPS(true, true); err != nil {
 		return errors.New("at init: unable to adjust the format of operator's name")
 	}
@@ -71,6 +76,10 @@ func (p *DefaultProfile) Init(d *Device) (err error) {
 		log.Error(err)
 		return errors.New("at init: unable to read operator's name")
 	}
+	if p.dev.State.SignalStrength, err = p.CSQ(); err != nil {
+		log.Error(err)
+		return errors.New("at init: unable to read signal strength")
+	}
 	if p.dev.State.ModelName, err = p.ModelName(); err != nil {
 		log.Error(err)
 		return errors.New("at init: unable to read modem's model name")
@@ -78,10 +87,6 @@ func (p *DefaultProfile) Init(d *Device) (err error) {
 	if p.dev.State.IMEI, err = p.IMEI(); err != nil {
 		log.Error(err)
 		return errors.New("at init: unable to read modem's IMEI code")
-	}
-	if err = p.QURCCFG("uart1"); err != nil {
-		log.Error(err)
-		return errors.New("at init: unable to switch URC to uart1")
 	}
 	if err = p.CMGF(false); err != nil {
 		log.Error(err)
@@ -482,5 +487,18 @@ func (p *DefaultProfile) IMEI() (str string, err error) {
 func (p *DefaultProfile) QURCCFG(urcPortValue string) (err error) {
 	req := fmt.Sprintf(`AT+QURCCFG="urcport","%s"`, urcPortValue)
 	_, err = p.dev.Send(req)
+	return
+}
+
+// QUECTEL UC20G
+// AT+CSQ Signal Quality Report
+func (p *DefaultProfile) CSQ() (value int, err error) {
+	result, err := p.dev.Send(`AT+CSQ`)
+	fields := strings.Split(strings.TrimPrefix(result, `+CSQ: `), ",")
+	if len(fields) < 2 {
+		err = ErrParseReport
+		return
+	}
+	value, err = strconv.Atoi(fields[0])
 	return
 }
